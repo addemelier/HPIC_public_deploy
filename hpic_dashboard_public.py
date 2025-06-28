@@ -201,11 +201,14 @@ def main():
     covid_date = pd.to_datetime('2020-03-01')
     hpic_launch = pd.to_datetime('2024-04-01')
     
-    if covid_date >= filtered_df['month_start'].min() and covid_date <= filtered_df['month_start'].max():
+    min_date = filtered_df['month_start'].min()
+    max_date = filtered_df['month_start'].max()
+    
+    if covid_date >= min_date and covid_date <= max_date:
         fig.add_vline(x=covid_date, line_dash="dash", line_color="red", 
                      annotation_text="COVID Impact", annotation_position="top left")
     
-    if hpic_launch >= filtered_df['month_start'].min() and hpic_launch <= filtered_df['month_start'].max():
+    if hpic_launch >= min_date and hpic_launch <= max_date:
         fig.add_vline(x=hpic_launch, line_dash="dash", line_color="green",
                      annotation_text="HPIC Launch", annotation_position="top right")
     
