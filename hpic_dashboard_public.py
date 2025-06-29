@@ -128,12 +128,7 @@ def main():
     st.subheader("📈 Membership Timeline")
     
     # Create interactive timeline
-    fig = make_subplots(
-        rows=2, cols=1,
-        subplot_titles=('Total Membership Growth', 'Membership by Source'),
-        vertical_spacing=0.12,
-        row_heights=[0.7, 0.3]
-    )
+    fig = go.Figure()
     
     # Main timeline
     fig.add_trace(
@@ -144,8 +139,7 @@ def main():
             name='Total Members',
             line=dict(color='#2E86AB', width=3),
             hovertemplate='<b>%{x|%B %Y}</b><br>Total Members: %{y}<extra></extra>'
-        ),
-        row=1, col=1
+        )
     )
     
     fig.add_trace(
@@ -156,8 +150,7 @@ def main():
             name='Classic',
             line=dict(color='#A23B72', width=2),
             hovertemplate='<b>%{x|%B %Y}</b><br>Classic: %{y}<extra></extra>'
-        ),
-        row=1, col=1
+        )
     )
     
     fig.add_trace(
@@ -168,111 +161,23 @@ def main():
             name='Champion',
             line=dict(color='#F18F01', width=2),
             hovertemplate='<b>%{x|%B %Y}</b><br>Champion: %{y}<extra></extra>'
-        ),
-        row=1, col=1
+        )
     )
     
-    # Data source breakdown
-    fig.add_trace(
-        go.Scatter(
-            x=filtered_df['month_start'],
-            y=filtered_df['hpic_members'],
-            mode='lines+markers',
-            name='HPIC System',
-            line=dict(color='#2E86AB', width=2),
-            hovertemplate='<b>%{x|%B %Y}</b><br>HPIC: %{y}<extra></extra>'
-        ),
-        row=2, col=1
-    )
-    
-    fig.add_trace(
-        go.Scatter(
-            x=filtered_df['month_start'],
-            y=filtered_df['pmp_members'],
-            mode='lines+markers',
-            name='PMP Legacy',
-            line=dict(color='#A23B72', width=2),
-            hovertemplate='<b>%{x|%B %Y}</b><br>PMP: %{y}<extra></extra>'
-        ),
-        row=2, col=1
-    )
-    
-    # Add milestone markers
-    covid_date = pd.to_datetime('2020-03-01')
-    hpic_launch = pd.to_datetime('2024-04-01')
-    
-    min_date = filtered_df['month_start'].min()
-    max_date = filtered_df['month_start'].max()
-    
-    if covid_date >= min_date and covid_date <= max_date:
-        fig.add_vline(x=covid_date, line_dash="dash", line_color="red", 
-                     annotation_text="COVID Impact", annotation_position="top left")
-    
-    if hpic_launch >= min_date and hpic_launch <= max_date:
-        fig.add_vline(x=hpic_launch, line_dash="dash", line_color="green",
-                     annotation_text="HPIC Launch", annotation_position="top right")
+    # Milestone markers temporarily removed due to Plotly timestamp issues
     
     fig.update_layout(
-        height=600,
+        height=400,
         showlegend=True,
-        hovermode='x unified'
+        hovermode='x unified',
+        title="Membership Growth Over Time"
     )
     
     fig.update_xaxes(title_text="Date")
-    fig.update_yaxes(title_text="Members", row=1, col=1)
-    fig.update_yaxes(title_text="Members", row=2, col=1)
+    fig.update_yaxes(title_text="Members")
     
     st.plotly_chart(fig, use_container_width=True)
     
-    # Additional insights
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("🎯 Growth Insights")
-        
-        # Calculate growth metrics
-        total_growth = current_data['active_members'] - filtered_df.iloc[0]['active_members']
-        months_span = len(filtered_df)
-        avg_monthly_growth = total_growth / months_span if months_span > 0 else 0
-        
-        peak_membership = filtered_df['active_members'].max()
-        peak_date = filtered_df.loc[filtered_df['active_members'].idxmax(), 'month_start']
-        
-        st.write(f"**Total Growth:** +{total_growth} members")
-        st.write(f"**Average Monthly Growth:** {avg_monthly_growth:.1f} members/month")
-        st.write(f"**Peak Membership:** {peak_membership} members ({peak_date.strftime('%B %Y')})")
-        
-        # Recent trend
-        recent_months = filtered_df.tail(6)
-        recent_growth = recent_months.iloc[-1]['active_members'] - recent_months.iloc[0]['active_members']
-        st.write(f"**6-Month Growth:** +{recent_growth} members")
-    
-    with col2:
-        st.subheader("📊 Current Breakdown")
-        
-        # Pie chart of current membership
-        tier_data = pd.DataFrame({
-            'Tier': ['Classic', 'Champion'],
-            'Members': [current_data['classic_members'], current_data['champion_members']]
-        })
-        
-        breakdown_fig = px.pie(
-            tier_data,
-            values='Members',
-            names='Tier',
-            title="Membership Tiers",
-            color_discrete_map={'Classic': '#A23B72', 'Champion': '#F18F01'}
-        )
-        breakdown_fig.update_layout(height=300)
-        st.plotly_chart(breakdown_fig, use_container_width=True)
-        
-        # Data source breakdown
-        current_hpic = current_data['hpic_members']
-        current_pmp = current_data['pmp_members']
-        
-        st.write("**Data Sources:**")
-        st.write(f"• HPIC System: {current_hpic} members")
-        st.write(f"• PMP Legacy: {current_pmp} members")
     
     # About section
     with st.expander("ℹ️ About This Dashboard"):
