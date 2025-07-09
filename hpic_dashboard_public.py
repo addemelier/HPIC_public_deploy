@@ -254,7 +254,16 @@ def main():
         }
     )
     fig_pie.update_traces(textposition='inside', textinfo='percent+label')
-    fig_pie.update_layout(height=400)
+    fig_pie.update_layout(
+        height=400,
+        legend=dict(
+            orientation="v",
+            yanchor="top",
+            y=0.95,
+            xanchor="left",
+            x=1.01
+        )
+    )
     st.plotly_chart(fig_pie, use_container_width=True)
     
     
