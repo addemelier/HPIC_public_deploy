@@ -44,6 +44,25 @@ def load_membership_data():
         st.error(f"❌ Error loading data: {e}")
         st.stop()
 
+@st.cache_data(ttl=3600)  # Cache for 1 hour
+def load_revenue_data():
+    try:
+        # Try to load from public_data directory first (local development)
+        if os.path.exists('public_data/revenue_analysis.csv'):
+            revenue_df = pd.read_csv('public_data/revenue_analysis.csv')
+        # Fallback to same directory (Streamlit Cloud deployment)
+        elif os.path.exists('revenue_analysis.csv'):
+            revenue_df = pd.read_csv('revenue_analysis.csv')
+        else:
+            st.error("❌ Revenue data file not found")
+            st.stop()
+        
+        return revenue_df
+        
+    except Exception as e:
+        st.error(f"❌ Error loading revenue data: {e}")
+        st.stop()
+
 # Main dashboard
 def main():
     # Header
@@ -53,6 +72,7 @@ def main():
     
     # Load data
     timeline_df = load_membership_data()
+    revenue_df = load_revenue_data()
     
     # Sidebar filters
     st.sidebar.header("📅 Filters")
@@ -87,7 +107,7 @@ def main():
     current_data = filtered_df.iloc[-1]
     previous_data = filtered_df.iloc[-2] if len(filtered_df) > 1 else current_data
     
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns([1, 1, 1])
     
     with col1:
         total_change = current_data['active_members'] - previous_data['active_members']
@@ -111,14 +131,6 @@ def main():
             "Champion Members", 
             f"{current_data['champion_members']:,}",
             delta=f"{champion_pct:.1f}% of total"
-        )
-    
-    with col4:
-        hpic_pct = (current_data['hpic_members'] / current_data['active_members']) * 100
-        st.metric(
-            "HPIC System",
-            f"{current_data['hpic_members']:,}",
-            delta=f"{hpic_pct:.1f}% of total"
         )
     
     # Main Charts
@@ -177,6 +189,127 @@ def main():
     fig.update_yaxes(title_text="Members")
     
     st.plotly_chart(fig, use_container_width=True)
+    
+    # Revenue Analysis Section
+    st.markdown("---")
+    st.subheader("💰 Revenue Analysis")
+    
+    # Revenue Overview Metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        total_revenue = revenue_df['total_revenue'].sum()
+        st.metric(
+            "Total Revenue",
+            f"${total_revenue:,.0f}",
+            delta=f"${revenue_df['revenue_2025'].sum():,.0f} in 2025"
+        )
+    
+    with col2:
+        grant_revenue = revenue_df[revenue_df['category'] == 'grant']['total_revenue'].sum()
+        grant_pct = (grant_revenue / total_revenue) * 100
+        st.metric(
+            "Grant Revenue",
+            f"${grant_revenue:,.0f}",
+            delta=f"{grant_pct:.1f}% of total"
+        )
+    
+    with col3:
+        total_transactions = revenue_df['transaction_count'].sum()
+        unique_contributors = revenue_df['unique_contributors'].sum()
+        st.metric(
+            "Total Transactions",
+            f"{total_transactions:,}",
+            delta=f"{unique_contributors:,} unique contributors"
+        )
+    
+    with col4:
+        avg_transaction = revenue_df['total_revenue'].sum() / revenue_df['transaction_count'].sum()
+        st.metric(
+            "Avg Transaction",
+            f"${avg_transaction:.2f}",
+            delta=None
+        )
+    
+    # Add separator line
+    st.markdown("---")
+    
+    # Revenue Distribution Chart
+    st.subheader("📊 Non-Grant Revenue Distribution")
+    
+    # Filter out grants for pie chart
+    non_grant_df = revenue_df[revenue_df['category'] != 'grant']
+    
+    # Revenue pie chart (excluding grants)
+    fig_pie = px.pie(
+        non_grant_df, 
+        values='total_revenue', 
+        names='category',
+        title="Revenue Distribution (Excluding Grants)",
+        color_discrete_map={
+            'membership': '#4ECDC4', 
+            'donation': '#45B7D1',
+            'other': '#96CEB4',
+            'building_booster': '#FFEAA7'
+        }
+    )
+    fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+    fig_pie.update_layout(height=400)
+    st.plotly_chart(fig_pie, use_container_width=True)
+    
+    
+    # Detailed Revenue Table
+    st.subheader("📋 Detailed Revenue Breakdown")
+    
+    # Format revenue data for display
+    display_df = revenue_df.copy()
+    display_df['Total Revenue'] = display_df['total_revenue'].apply(lambda x: f"${x:,.2f}")
+    display_df['% of Total'] = display_df['percentage_of_total'].apply(lambda x: f"{x:.1f}%")
+    display_df['2025 Revenue'] = display_df['revenue_2025'].apply(lambda x: f"${x:,.2f}")
+    display_df['Avg Transaction'] = display_df['avg_transaction_amount'].apply(lambda x: f"${x:.2f}")
+    
+    columns_to_show = ['category', 'transaction_count', 'unique_contributors', 'Total Revenue', '% of Total', '2025 Revenue', 'Avg Transaction']
+    display_df = display_df[columns_to_show]
+    display_df.columns = ['Category', 'Transactions', 'Contributors', 'Total Revenue', '% of Total', '2025 Revenue', 'Avg Transaction']
+    
+    st.dataframe(display_df, use_container_width=True)
+    
+    # Key Insights
+    st.subheader("🔍 Key Insights")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("**🎯 Grant Detection:**")
+        st.info("WA Dept of Commerce grant automatically categorized as 'grant' revenue")
+        
+        st.markdown("**💵 Membership Calculation:**")
+        membership_revenue = revenue_df[revenue_df['category'] == 'membership']['total_revenue'].sum()
+        membership_transactions = revenue_df[revenue_df['category'] == 'membership']['transaction_count'].sum()
+        st.info(f"${membership_revenue:,.0f} from {membership_transactions:,} membership transactions")
+        
+        st.markdown("**🏗️ Building Booster Tracking:**")
+        booster_revenue = revenue_df[revenue_df['category'] == 'building_booster']['total_revenue'].sum()
+        booster_contributors = revenue_df[revenue_df['category'] == 'building_booster']['unique_contributors'].sum()
+        st.info(f"${booster_revenue:,.0f} from {booster_contributors:,} recurring facility donors")
+    
+    with col2:
+        st.markdown("**📊 Comprehensive Stats:**")
+        total_stats = f"""
+        - Total transactions: {revenue_df['transaction_count'].sum():,}
+        - Unique contributors: {revenue_df['unique_contributors'].sum():,}
+        - Categories tracked: {len(revenue_df):,}
+        - Grant percentage: {(grant_revenue/total_revenue)*100:.1f}%
+        """
+        st.info(total_stats)
+        
+        st.markdown("**🗓️ 2025 Revenue Summary:**")
+        revenue_2025_summary = f"""
+        - Total 2025: ${revenue_df['revenue_2025'].sum():,.0f}
+        - Grant portion: ${revenue_df[revenue_df['category'] == 'grant']['revenue_2025'].sum():,.0f}
+        - Non-grant portion: ${revenue_df[revenue_df['category'] != 'grant']['revenue_2025'].sum():,.0f}
+        """
+        st.info(revenue_2025_summary)
     
     
     # About section
